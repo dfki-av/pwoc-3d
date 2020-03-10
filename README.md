@@ -37,3 +37,14 @@ A scene flow value is considered "unknown" if either ot the flow or disparity co
 |4-7     |width as an integer|
 |8-11    |height as an integer|
 |12-end  |data (width * height * 4 * 4 bytes total) the float values for u and v, d0, and d1 interleaved, in row order, i.e. <br>u[row0,col0], v[row0,col0], d0[row0,col0], d1[row0,col0], <br> u[row0,col1], v[row0,col1], d0[row0,col1], d1[row0,col1], ... |
+
+## Citation
+If you find the code or the paper useful, consider citing us:
+```
+@inproceedings{saxena2019pwoc,
+  title={{PWOC-3D}: Deep Occlusion-Aware End-to-End Scene Flow Estimation},
+  author={Saxena, Rohan and Schuster, Ren{\'e} and Wasenm{\"u}ller, Oliver and Stricker, Didier},
+  booktitle={IEEE Intelligent Vehicles Symposium (IV)},
+  year={2019},
+}
+```
