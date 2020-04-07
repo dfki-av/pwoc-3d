@@ -145,8 +145,8 @@ def OcclusionEstimator(features, level, activation_fn=tf.keras.layers.LeakyReLU(
     occ_mask = Conv(filters=1, name_suffix='_occ_mask', activation=tf.keras.activations.sigmoid)(feat)
 
     if highest_resolution:
-        return tf.keras.Model(inputs=features, outputs=occ_mask, name='context_network'+str(level))
+        return tf.keras.Model(inputs=features, outputs=occ_mask, name='occlusion_estimator'+str(level))
     else:
         features_up = UpConv(filters=1, name_suffix='_up_feat', activation=tf.keras.activations.sigmoid)(feat)
         occ_mask_up = UpConv(filters=1, name_suffix='_up_occ_mask', activation=tf.keras.activations.sigmoid)(occ_mask)
-        return tf.keras.Model(inputs=features, outputs=(occ_mask, features_up, occ_mask_up), name='context_network'+str(level))
+        return tf.keras.Model(inputs=features, outputs=(occ_mask, features_up, occ_mask_up), name='occlusion_estimator'+str(level))
