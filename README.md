@@ -56,7 +56,7 @@ python train.py --pretrain --init_with="./models/pwoc3d-ft3d-noocc/pwoc3d-ft3d-n
 python train.py --finetune --init_with="./models/pwoc3d-ft3d/pwoc3d-ft3d"
 ```   
 
-###Monitoring the training
+### Monitoring the training
 During training, results will be logged as tensorboard summaries.
 
 Run `tensorboard --logdir=./summaries` to see the graphs for all common scene flow metrics.
