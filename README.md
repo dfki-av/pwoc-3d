@@ -13,7 +13,7 @@ Execute `demo.py` to estimate scene flow for the sample in the `data` folder. Th
     - [TensorFlow Addons](https://github.com/tensorflow/addons)
     - NumPy
     - ImageIO
-    - Matplotib (for visualization only)
+    - Matplotlib (for visualization only)
     - tqdm (for training only)
 
 You can install all dependencies using pip: `pip install -r requirements.txt`
@@ -24,7 +24,7 @@ Ubuntu 18.04: Python 3.6.8, TensorFlow 2.1.0, Numpy 1.17.4, ImageIO 2.8.0
  
 
 ### Data Format
-The output file of the demo is in `.sfl` format. This is the straight forward extension of middlebury `.flo` file format for optical flow to scene flow. `.sfl` files are binary files according the following format:
+The output file of the demo is in `.sfl` format. This is the straight forward extension of middlebury `.flo` file format for optical flow to scene flow. `.sfl` files are binary files according to the following format:
 
 ```
 ".sfl" file format used to store scene flow
@@ -32,7 +32,7 @@ Stores 4-band float image for flow and disparity components.
 Floats are stored in little-endian order.
 An optical flow value is considered "unknown" if either |u| or |v| is greater than 1e9.
 A disparity value is considered "unknown" if it is less or equal 0.
-A scene flow value is considered "unknown" if either ot the flow or disparity components is unknown.
+A scene flow value is considered "unknown" if either of the flow or disparity components is unknown.
 ```
 
 |bytes   |contents                                                                                                                                                                                                                              |
@@ -47,9 +47,9 @@ We provide code for training our model from scratch or using the pre-trained wei
 
 For pre-training from scratch on FlyingThings3D execute `train.py --pretrain`.
 
-For fine-tuning on KITTI based on the initial weights for FlyingThings3D execute `train.py --finetune`. Make sure you have pre-trained the model on FlyingThings3D or downloaded the pre-trained weights.
+For fine-tuning on KITTI based on the initial weights for FlyingThings3D execute `train.py --finetune`. Make sure you have pre-trained the model on FlyingThings3D or downloaded the [pre-trained weights](https://cloud.dfki.de/owncloud/index.php/s/yjFg74FtrLaxZ8j/download).
 
-If you really plan to train from scratch, it is advisable that you train the model without the occlusion estimation module first (i.e. using the flag `-noocc`). The occlusion estimator follows the idea of self-attention and thus might be instable when features are less distinctive right in the beginning of training. A typical training routine from scratch till a fine-tuned KITTI model thus might look like this:
+If you really plan to train from scratch, it is advisable that you train the model without the occlusion estimation module first (i.e. using the flag `--noocc`). The occlusion estimator follows the idea of self-attention and thus might be instable when features are less distinctive right in the beginning of training. A typical training routine from scratch till a fine-tuned KITTI model thus might look like this:
 ```
 python train.py --pretrain --noocc
 python train.py --pretrain --init_with="./models/pwoc3d-ft3d-noocc/pwoc3d-ft3d-noocc"
