@@ -61,8 +61,20 @@ During training, results will be logged as tensorboard summaries.
 
 Run `tensorboard --logdir=./summaries` to see the graphs for all common scene flow metrics.
 
+## Evaluating a model
+Once a checkpoint for a trained model is stored, you can evaluate your model with the provided script for evaluation `eval.py <ckpt>`, e.g.:
+```
+python eval.py ./data/pwoc3d-kitti
+```
+This command should produce a similar output to this, giving the average errors and outliers for the 20 samples of our KITTI validation split.
+```
+EPE (px):       D1      D2      OF      SF(sum) SF(4d)          KOE (%):        D1      D2      OF      SF
+                1.05    1.32    2.70    5.07    3.53                            4.65    6.75    11.46   13.75
+```
+
+
 ## Citation
-If you find the code or the paper useful, consider citing us:
+If you find the code or the paper useful, please consider citing us:
 ```
 @inproceedings{saxena2019pwoc,
   title={{PWOC-3D}: Deep Occlusion-Aware End-to-End Scene Flow Estimation},
