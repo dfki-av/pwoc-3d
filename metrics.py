@@ -1,3 +1,4 @@
+import sys
 import tensorflow as tf
 
 
@@ -74,4 +75,12 @@ class SceneFlowMetrics(tf.keras.metrics.Metric):
             tf.summary.scalar('end-point-error/D1_EPE', d1_epe, step=epoch)
             tf.summary.scalar('end-point-error/D0_EPE', d0_epe, step=epoch)
         writer.flush()
+        return
+
+
+    def print(self, stream=sys.stdout):
+        sf_koe, of_koe, d1_koe, d0_koe, sum_epe, sf_epe, of_epe, d1_epe, d0_epe = self.result()
+        stream.write("EPE (px):\tD1\tD2\tOF\tSF(sum)\tSF(4d)\t\tKOE (%):\tD1\tD2\tOF\tSF\n")
+        stream.write("\t\t%.02f\t%.02f\t%.02f\t%.02f\t%.02f\t\t\t\t%.02f\t%.02f\t%.02f\t%.02f\n" % (
+            d0_epe, d1_epe, of_epe, sum_epe, sf_epe, d0_koe, d1_koe, of_koe, sf_koe))
         return
