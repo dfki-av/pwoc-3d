@@ -7,6 +7,7 @@ from matplotlib import cm
 
 BASEPATH_KITTI = "./data/kitti/"
 BASEPATH_FT3D = './data/ft3d/'
+BASEPATH_SPRING = './data/spring'
 
 
 '''
