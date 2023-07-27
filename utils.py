@@ -245,3 +245,44 @@ def colored_disparity(disp, maxdisp=-1, mask=None):
         img[mask != 1] = [0,0,0,1]
     img = img[:,:,0:3]
     return np.uint8(img*255)
+
+def split_spring_seq(root:str, validation_split:float=0.2):
+    '''splits the sequences into training and validation sequences based on the given validation split'''
+    def get_seq_to_count(sequences, train_path):
+        return {seq: len(os.listdir(os.path.join(train_path, seq, 'frame_left'))) for seq in sequences}
+    def get_sum(seq_dict):
+        return sum(seq_dict.values())
+        
+    # getting sequences
+    train_path = os.path.join(root, 'spring', 'train')
+    all_sequences = os.listdir(train_path)
+    train_seq = all_sequences.copy()
+    seq_count = get_seq_to_count(train_seq, train_path)
+
+    # count and get count required validation images
+    total_images = get_sum(seq_count)
+    num_validation_images = int(validation_split*total_images)
+
+    # sort the sequences in ascending order of the number of images in each sequencees
+    sorted_dict = dict(sorted(seq_count.items(),key=lambda value: value[1]))
+    val_seq = []
+    val_count = 0
+    
+    # distributing sequences based on the split ratio
+    for seq, count in sorted_dict.items():
+        if val_count <= num_validation_images:
+            val_seq.append(seq)
+            train_seq.remove(seq)
+            val_count += count
+    # assuring that training split >= validation split
+    if validation_split <= 0.5:
+        while get_sum(get_seq_to_count(train_seq, train_path)) < get_sum(get_seq_to_count(val_seq, train_path)):
+            train_seq.append(val_seq.pop(-1))
+            print('Adjusted for train to be Large')
+    
+    # final checks
+    assert len(train_seq) + len(val_seq) == len(all_sequences), f"length of train sequences is {len(train_seq)} and {len(val_seq)} while total sequences are {len(all_sequences)}"
+    common_seq = list(set(train_seq).intersection(val_seq))
+    assert len(common_seq) == 0, f"common sequences found in train and validation splits: {common_seq}"
+    
+    return train_seq, val_seq
