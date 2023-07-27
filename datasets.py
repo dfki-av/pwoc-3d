@@ -238,3 +238,28 @@ class SpringDataset:
                     sf = np.stack(
                         (flow[:, :, 0], flow[:, :, 1], disp1, disp2), axis=-1)
                     yield (img1, img2, img3, img4), sf
+
+
+def get_spring_dataset(idxs: List[int],
+                       spring_dataset: SpringDataset,
+                       batch_size: int,
+                       augment: bool = False,
+                       shuffle: bool = False,
+                       crop: bool = True):
+                       
+    dataset = tf.data.Dataset.from_generator(lambda: spring_dataset(train_indices),
+                                             output_types=(
+                                                 4*(tf.float32,), tf.float32),
+                                             output_shapes=(4*((None, None, 3),), (None, None, 4)))
+    dataset = dataset.cache()
+    if shuffle:
+        dataset = dataset.shuffle(len(idxs), reshuffle_each_iteration=True)
+    if batch_size > 1 or crop:
+        dataset = dataset.map(map_func=lambda ims, gt: _random_crop(
+            ims, gt, target_size=(370, 1224)), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if augment:
+        dataset = dataset.map(
+            map_func=_augment, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(2)
+    return dataset
