@@ -98,6 +98,24 @@ def load_kitti_sf(n, occ='occ'):
     return sf
 
 
+def load_spring_images(*image_paths):
+
+    img1 = imageio.imread(image_paths[0])/255.0
+    img2 = imageio.imread(image_paths[1])/255.0
+    img3 = imageio.imread(image_paths[2])/255.0
+    img4 = imageio.imread(image_paths[3])/255.0
+
+    return img1, img2, img3, img4
+
+
+def load_spring_sf(*paths):
+    disp1 = flow_IO.readDispFile(paths[0])
+    disp2 = flow_IO.readDispFile(paths[1])
+    opt_flow = flow_IO.readFlowFile(paths[2])
+
+    return disp1, disp2, opt_flow
+
+
 def load_ft3d_images(letter, sequence, frame, forward=True, subset='TRAIN'):
     if forward:
         tempstep = 1
@@ -247,7 +265,26 @@ def colored_disparity(disp, maxdisp=-1, mask=None):
     img = img[:,:,0:3]
     return np.uint8(img*255)
 
-def split_spring_seq(root:str, validation_split:float=0.2):
+
+def prepare_spring_data_dict(root, split):
+    '''prepares a dict type mapping between scenes and their respective data.'''
+    seq_root = os.path.join(root, 'spring', split)
+    scene_dict = {}
+    for scene in sorted(os.listdir(seq_root)):
+        for cam in ["left", "right"]:
+            images = sorted(
+                glob(os.path.join(seq_root, scene, f"frame_{cam}", '*.png')))
+            # self._image_paths.extend(images)
+            # forward
+            if scene not in scene_dict:
+                scene_dict[scene] = []
+            for frame in range(1, len(images)):
+                scene_dict[scene].append((frame, scene, cam, "FW"))
+            # backward
+            for frame in reversed(range(2, len(images)+1)):
+                scene_dict[scene].append((frame, scene, cam, "BW"))
+    return scene_dict
+
     '''splits the sequences into training and validation sequences based on the given validation split'''
     def get_seq_to_count(sequences, train_path):
         return {seq: len(os.listdir(os.path.join(train_path, seq, 'frame_left'))) for seq in sequences}
@@ -287,3 +324,28 @@ def split_spring_seq(root:str, validation_split:float=0.2):
     assert len(common_seq) == 0, f"common sequences found in train and validation splits: {common_seq}"
     
     return train_seq, val_seq
+def make_spring_folder(data):
+    seq = data[1]
+    seq = os.path.join("predictions", seq)
+    for cam in ["left", "right"]:
+        for direction in ["FW", "BW"]:
+            os.makedirs(os.path.join(seq, f'flow_{direction}_{cam}'), exist_ok=True)
+            os.makedirs(os.path.join(seq, f'disp2_{direction}_{cam}'), exist_ok=True)
+        os.makedirs(os.path.join(seq, f'disp1_{cam}'), exist_ok=True)
+        
+def write_spring_predictions(prediction, data):
+    index, seq, cam, direc = data
+    seq = os.path.join("predictions", seq)
+    prediction = prediction.squeeze(0)
+    flow = prediction[:, :, :2]
+    disp1 = prediction[:, :, -2]
+    disp2 = prediction[:, :, -1]
+    disp1_path = os.path.join(
+        seq, f'disp1_{cam}', f'disp1_{cam}_{index:04d}.dsp5')
+    disp2_path = os.path.join(
+        seq, f'disp2_{direc}_{cam}', f'disp2_{direc}_{cam}_{index:04d}.dsp5')
+    flow_path = os.path.join(seq, f'flow_{direc}_{cam}',
+                             f'flow_{direc}_{cam}_{index:04d}.flo5')
+    flow_IO.writeFlo5File(flow, flow_path)
+    flow_IO.writeDsp5File(disp1, disp1_path)
+    flow_IO.writeDsp5File(disp2, disp2_path)
