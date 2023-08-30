@@ -1,12 +1,16 @@
 import tensorflow as tf
 import numpy as np
-from utils import load_kitti_images, load_kitti_sf, load_ft3d_images, load_ft3d_sf, split_spring_seq, BASEPATH_SPRING
+from utils import *
 import random
 from typing import List
+import os
+from tqdm import tqdm
+import json
+
 
 KITTI_MEAN_PIXEL = [0.3791041, 0.39846687, 0.38367166]  # RGB
 FT3D_MEAN_PIXEL = [0.424101, 0.40341005, 0.36796424]  # RGB
-SPRING_MEAN_PIXEL = [0.21417567, 0.2714196 , 0.29755503] # RGB
+SPRING_MEAN_PIXEL = [0.21417567, 0.2714196, 0.29755503]  # RGB
 
 KITTI_TRAIN_IDXS = [2, 43, 44, 158, 78, 102, 56, 13, 107, 99, 31, 55, 54, 129, 85, 151, 173, 186, 195, 130, 48, 196, 154, 28, 165,
                     63, 60, 161, 140, 194, 104, 114, 35, 16, 152, 77, 126, 23, 125, 10, 86, 124, 160, 80, 98, 193, 69, 118, 115,
