@@ -1,20 +1,31 @@
 import os
 import re
 import numpy as np
-import imageio
+import imageio.v2 as imageio
 from matplotlib import cm
+import sys
+from glob import glob
+
+FLOW_LIBRARY_PATH = "./data/flow_library"
+sys.path.append(FLOW_LIBRARY_PATH)
+import flow_IO
 
 
 BASEPATH_KITTI = "./data/kitti/"
 BASEPATH_FT3D = './data/ft3d/'
 BASEPATH_SPRING = './data/spring'
 
-
+__all__ = ['load_kitti_images', 'load_kitti_sf', 'load_ft3d_images',
+           'load_ft3d_sf',
+           'split_spring_seq', 'BASEPATH_SPRING',
+           'load_spring_images', 'load_spring_sf', 'prepare_spring_data_dict']
 '''
 Load a PFM file into a Numpy array. Note that it will have
 a shape of H x W, not W x H. Returns a tuple containing the
 loaded image and the scale factor from the file.
 '''
+
+
 def load_pfm(path):
     file = open(path, "r", encoding="latin-1")
     header = file.readline().rstrip()
@@ -54,7 +65,8 @@ def write_sfl_file(filepath, sf):
 def read_sfl_file(filepath):
     with open(filepath, 'rb') as f:
         flo_number = np.fromfile(f, np.float32, count=1)[0]
-        assert flo_number == 202021.25, ('Flow number %r incorrect. Invalid .sfl file' % flo_number)
+        assert flo_number == 202021.25, (
+            'Flow number %r incorrect. Invalid .sfl file' % flo_number)
         w = np.fromfile(f, np.int32, count=1)[0]
         h = np.fromfile(f, np.int32, count=1)[0]
         data = np.fromfile(f, np.float32, count=4 * w * h)
@@ -122,27 +134,36 @@ def load_ft3d_images(letter, sequence, frame, forward=True, subset='TRAIN'):
     else:
         tempstep = -1
 
-    impath_left_1 = os.path.join(BASEPATH_FT3D, "frames_finalpass", subset, "%s/%04d/left/%04d.png" % (letter, sequence, frame))
-    impath_left_2 = os.path.join(BASEPATH_FT3D, "frames_finalpass", subset, "%s/%04d/left/%04d.png" % (letter, sequence, frame+tempstep))
-    impath_right_1 = os.path.join(BASEPATH_FT3D, "frames_finalpass", subset, "%s/%04d/right/%04d.png" % (letter, sequence, frame))
-    impath_right_2 = os.path.join(BASEPATH_FT3D, "frames_finalpass", subset, "%s/%04d/right/%04d.png" % (letter, sequence, frame+tempstep))
+    impath_left_1 = os.path.join(BASEPATH_FT3D, "frames_finalpass",
+                                 subset, "%s/%04d/left/%04d.png" % (letter, sequence, frame))
+    impath_left_2 = os.path.join(BASEPATH_FT3D, "frames_finalpass", subset,
+                                 "%s/%04d/left/%04d.png" % (letter, sequence, frame+tempstep))
+    impath_right_1 = os.path.join(BASEPATH_FT3D, "frames_finalpass",
+                                  subset, "%s/%04d/right/%04d.png" % (letter, sequence, frame))
+    impath_right_2 = os.path.join(BASEPATH_FT3D, "frames_finalpass", subset,
+                                  "%s/%04d/right/%04d.png" % (letter, sequence, frame+tempstep))
 
-    im_left_1 = imageio.imread(impath_left_1)[:,:,:3] / 255.0
-    im_left_2 = imageio.imread(impath_left_2)[:,:,:3] / 255.0
-    im_right_1 = imageio.imread(impath_right_1)[:,:,:3] / 255.0
-    im_right_2 = imageio.imread(impath_right_2)[:,:,:3] / 255.0
+    im_left_1 = imageio.imread(impath_left_1)[:, :, :3] / 255.0
+    im_left_2 = imageio.imread(impath_left_2)[:, :, :3] / 255.0
+    im_right_1 = imageio.imread(impath_right_1)[:, :, :3] / 255.0
+    im_right_2 = imageio.imread(impath_right_2)[:, :, :3] / 255.0
 
     return im_left_1, im_right_1, im_left_2, im_right_2
 
 
 def load_ft3d_sf(letter, sequence, frame, forward=True, subset='TRAIN'):
     if forward:
-        of_path = os.path.join(BASEPATH_FT3D, "optical_flow", subset, "%s/%04d/into_future/left/OpticalFlowIntoFuture_%04d_L.pfm" % (letter, sequence, frame))
-        dispchange_path = os.path.join(BASEPATH_FT3D, "disparity_change", subset, "%s/%04d/into_future/left/%04d.pfm" % (letter, sequence, frame))
+        of_path = os.path.join(BASEPATH_FT3D, "optical_flow", subset,
+                               "%s/%04d/into_future/left/OpticalFlowIntoFuture_%04d_L.pfm" % (letter, sequence, frame))
+        dispchange_path = os.path.join(BASEPATH_FT3D, "disparity_change", subset,
+                                       "%s/%04d/into_future/left/%04d.pfm" % (letter, sequence, frame))
     else:
-        of_path = os.path.join(BASEPATH_FT3D, "optical_flow", subset, "%s/%04d/into_past/left/OpticalFlowIntoPast_%04d_L.pfm" % (letter, sequence, frame))
-        dispchange_path = os.path.join(BASEPATH_FT3D, "disparity_change", subset, "%s/%04d/into_past/left/%04d.pfm" % (letter, sequence, frame))
-    disp_path = os.path.join(BASEPATH_FT3D, "disparity", subset, "%s/%04d/left/%04d.pfm" % (letter, sequence, frame))
+        of_path = os.path.join(BASEPATH_FT3D, "optical_flow", subset,
+                               "%s/%04d/into_past/left/OpticalFlowIntoPast_%04d_L.pfm" % (letter, sequence, frame))
+        dispchange_path = os.path.join(BASEPATH_FT3D, "disparity_change", subset,
+                                       "%s/%04d/into_past/left/%04d.pfm" % (letter, sequence, frame))
+    disp_path = os.path.join(BASEPATH_FT3D, "disparity", subset,
+                             "%s/%04d/left/%04d.pfm" % (letter, sequence, frame))
 
     flow = np.flipud(load_pfm(of_path))
     disp0 = np.flipud(load_pfm(disp_path))
@@ -200,7 +221,7 @@ def compute_color(u, v):
     k1 = k0 + 1
     k1[k1 == ncols+1] = 1
     f = fk - k0
-    for i in range(0, np.size(colorwheel,1)):
+    for i in range(0, np.size(colorwheel, 1)):
         tmp = colorwheel[:, i]
         col0 = tmp[k0-1] / 255
         col1 = tmp[k1-1] / 255
@@ -232,23 +253,28 @@ def make_color_wheel():
     colorwheel[0:RY, 1] = np.transpose(np.floor(255*np.arange(0, RY) / RY))
     col += RY
     # YG
-    colorwheel[col:col+YG, 0] = 255 - np.transpose(np.floor(255*np.arange(0, YG) / YG))
+    colorwheel[col:col+YG, 0] = 255 - \
+        np.transpose(np.floor(255*np.arange(0, YG) / YG))
     colorwheel[col:col+YG, 1] = 255
     col += YG
     # GC
     colorwheel[col:col+GC, 1] = 255
-    colorwheel[col:col+GC, 2] = np.transpose(np.floor(255*np.arange(0, GC) / GC))
+    colorwheel[col:col+GC,
+               2] = np.transpose(np.floor(255*np.arange(0, GC) / GC))
     col += GC
     # CB
-    colorwheel[col:col+CB, 1] = 255 - np.transpose(np.floor(255*np.arange(0, CB) / CB))
+    colorwheel[col:col+CB, 1] = 255 - \
+        np.transpose(np.floor(255*np.arange(0, CB) / CB))
     colorwheel[col:col+CB, 2] = 255
     col += CB
     # BM
     colorwheel[col:col+BM, 2] = 255
-    colorwheel[col:col+BM, 0] = np.transpose(np.floor(255*np.arange(0, BM) / BM))
+    colorwheel[col:col+BM,
+               0] = np.transpose(np.floor(255*np.arange(0, BM) / BM))
     col += + BM
     # MR
-    colorwheel[col:col+MR, 2] = 255 - np.transpose(np.floor(255 * np.arange(0, MR) / MR))
+    colorwheel[col:col+MR, 2] = 255 - \
+        np.transpose(np.floor(255 * np.arange(0, MR) / MR))
     colorwheel[col:col+MR, 0] = 255
     return colorwheel
 
@@ -259,10 +285,10 @@ def colored_disparity(disp, maxdisp=-1, mask=None):
         maxd = np.max(disp)
     vals = disp/maxd
     img = cm.jet(vals)
-    img[vals > 1] = [1,0,0,1]
+    img[vals > 1] = [1, 0, 0, 1]
     if mask is not None:
-        img[mask != 1] = [0,0,0,1]
-    img = img[:,:,0:3]
+        img[mask != 1] = [0, 0, 0, 1]
+    img = img[:, :, 0:3]
     return np.uint8(img*255)
 
 
@@ -285,15 +311,22 @@ def prepare_spring_data_dict(root, split):
                 scene_dict[scene].append((frame, scene, cam, "BW"))
     return scene_dict
 
+
+def split_spring_seq(root, split='train', validation_split=0.2):
     '''splits the sequences into training and validation sequences based on the given validation split'''
+
     def get_seq_to_count(sequences, train_path):
         return {seq: len(os.listdir(os.path.join(train_path, seq, 'frame_left'))) for seq in sequences}
+
     def get_sum(seq_dict):
         return sum(seq_dict.values())
-        
+
     # getting sequences
-    train_path = os.path.join(root, 'spring', 'train')
+    train_path = os.path.join(root, 'spring', split)
     all_sequences = os.listdir(train_path)
+    if split == 'test':
+        return all_sequences
+
     train_seq = all_sequences.copy()
     seq_count = get_seq_to_count(train_seq, train_path)
 
@@ -302,28 +335,31 @@ def prepare_spring_data_dict(root, split):
     num_validation_images = int(validation_split*total_images)
 
     # sort the sequences in ascending order of the number of images in each sequencees
-    sorted_dict = dict(sorted(seq_count.items(),key=lambda value: value[1]))
+    sorted_dict = dict(sorted(seq_count.items(), key=lambda value: value[1]))
     val_seq = []
     val_count = 0
-    
+
     # distributing sequences based on the split ratio
     for seq, count in sorted_dict.items():
         if val_count <= num_validation_images:
             val_seq.append(seq)
             train_seq.remove(seq)
             val_count += count
-    # assuring that training split >= validation split
+        # assuring that training split >= validation split
     if validation_split <= 0.5:
         while get_sum(get_seq_to_count(train_seq, train_path)) < get_sum(get_seq_to_count(val_seq, train_path)):
             train_seq.append(val_seq.pop(-1))
-            print('Adjusted for train to be Large')
-    
-    # final checks
-    assert len(train_seq) + len(val_seq) == len(all_sequences), f"length of train sequences is {len(train_seq)} and {len(val_seq)} while total sequences are {len(all_sequences)}"
+            print('Adjusted for traininig dataset to be larger than validation dataset')
+
+        # final checks
+    assert len(train_seq) + len(val_seq) == len(
+        all_sequences), f"length of train sequences is {len(train_seq)} and {len(val_seq)} while total sequences are {len(all_sequences)}"
     common_seq = list(set(train_seq).intersection(val_seq))
-    assert len(common_seq) == 0, f"common sequences found in train and validation splits: {common_seq}"
-    
+    assert len(
+        common_seq) == 0, f"common sequences found in train and validation splits: {common_seq}"
     return train_seq, val_seq
+
+
 def make_spring_folder(data):
     seq = data[1]
     seq = os.path.join("predictions", seq)
