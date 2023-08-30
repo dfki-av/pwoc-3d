@@ -75,6 +75,11 @@ def _ft3d_data_with_labels(dataset_name, shuffle=False, temporal_augmentation=Fa
 
 def _augment(images, sf, vertical_flipping=False):
 
+    tup = False
+    if len(images) == 2:
+        images, cam = images
+        tup = True
+
     stacked_images = tf.stack(images, axis=0)
 
     # Gaussian noise has a sigma uniformly sampled from [0, 0.04]
@@ -106,14 +111,31 @@ def _augment(images, sf, vertical_flipping=False):
         sf = tf.image.flip_up_down(sf)
         sf *= [1., -1., 1., 1.]
 
-    return (augmented_images[0], augmented_images[1], augmented_images[2], augmented_images[3]), sf
+    images = (augmented_images[0], augmented_images[1],
+              augmented_images[2], augmented_images[3])
+    if tup:
+        images = (images, cam)
+
+    return images, sf
 
 
 def _random_crop(images, sf, target_size):
+    tup = False
+    if len(images) == 2:
+        images, cam = images
+        tup = True
+
     stacked_batch = tf.concat(images+(sf,), axis=2)
     cropped_stack = tf.image.random_crop(
         stacked_batch, size=target_size+(4*3+4,))
-    return (cropped_stack[:, :, 0:3], cropped_stack[:, :, 3:6], cropped_stack[:, :, 6:9], cropped_stack[:, :, 9:12]), cropped_stack[:, :, 12:]
+
+    sf = cropped_stack[:, :, 12:]
+    images = (cropped_stack[:, :, 0:3], cropped_stack[:, :, 3:6],
+              cropped_stack[:, :, 6:9], cropped_stack[:, :, 9:12])
+
+    if tup:
+        images = (images, cam)
+    return images, sf
 
 
 def get_kitti_dataset(idxs, batch_size, augment=False, shuffle=False, crop=False):
