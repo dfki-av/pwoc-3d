@@ -38,8 +38,13 @@ FT3D_VALIDATION_LIST = list(t for t in ((letter, seq, frame) for letter in [
 FT3D_TRAINING_SAMPLES = len(FT3D_TRAIN_LIST)  # 20630
 FT3D_VALIDATION_SAMPLES = len(FT3D_VALIDATION_LIST)  # 1500
 
-SPRING_TRAINING_IDXS, SPRING_VALIDATION_IDXS = split_spring_seq(
-    BASEPATH_SPRING, 0.25)
+if os.path.exists(os.path.join(BASEPATH_SPRING, 'spring', 'train')):
+    SPRING_SCENE_DICT = prepare_spring_data_dict(BASEPATH_SPRING, 'train')
+    SPRING_TRAINING_IDXS, SPRING_VALIDATION_IDXS = split_spring_seq(
+        BASEPATH_SPRING, validation_split=0.25)
+    with open("./spring_splits.json", "w+") as f:
+        json.dump({'spring_train_idxs': SPRING_TRAINING_IDXS,
+                   'spring_val_idxs': SPRING_VALIDATION_IDXS}, f, indent=4)
 
 
 def _kitti_data_with_labels(idxs):
