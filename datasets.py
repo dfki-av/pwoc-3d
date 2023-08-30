@@ -157,33 +157,38 @@ class SpringDataset:
     A Spring Dataset class that can be used to obatin train and test datasets.
     """
 
-    def __init__(self, root: str, split: str = 'train', subsample_groundtruth: bool = True):
+    def __init__(self, root: str, indices, data_dict, split: str = 'train', subsample_groundtruth: bool = True, shuffle: bool = False):
+        """
+        :param: root: Path where the spring/original exits (including spring/original_
+        :param: split: type of split. supports only test and train (not validation. validation is controlled by indices)
+        :param: subsample_groundtruth: when set to True, subsamples the ground truth by 4 times.
+        :param: shuffle: shuffles the given indices.
+        """
+
         self._split = split.lower()
         self._subsample_gt = subsample_groundtruth
-        seq_root = os.path.join(root, 'spring', split)
 
-        self.seq_root = seq_root
-        self._scene_dict = {}
-        self._image_paths = []
+        if self._split.startswith('val'):
+            split = 'train'
+        self.seq_root = os.path.join(root, 'spring', split)
+        self._shuffle = shuffle
 
-        for scene in sorted(os.listdir(seq_root)):
-            for cam in ["left", "right"]:
-                images = sorted(
-                    glob(os.path.join(seq_root, scene, f"frame_{cam}", '*.png')))
-                # self._image_paths.extend(images)
-                # forward
-                if scene not in self._scene_dict:
-                    self._scene_dict[scene] = []
-                for frame in range(1, len(images)):
-                    self._scene_dict[scene].append((frame, scene, cam, "FW"))
-                # backward
-                for frame in reversed(range(2, len(images)+1)):
-                    self._scene_dict[scene].append((frame, scene, cam, "BW"))
+        self._scene_dict = data_dict
+        self._indices = indices
 
-        print(f"{self._split} data paths are sorted and ready.")
+    def __len__(self):
+        c = 0
+        for index in self._indices:
+            frame_data = self._scene_dict[index]
+            for data in frame_data:
+                c += 1
+        return c
 
-    def __call__(self, indices: List):
-        for index in indices:
+    def __iter__(self):
+        if self._shuffle:
+            np.random.shuffle(self._indices)
+
+        for index in self._indices:
             frame_data = self._scene_dict[index]
             for data in frame_data:
                 frame, scene, cam, direction = data
@@ -195,7 +200,9 @@ class SpringDataset:
 
                 if cam == "left":
                     othercam = "right"
+                    cam_signal = 1
                 else:
+                    cam_signal = -1
                     othercam = "left"
 
                 if direction == "FW":
@@ -212,25 +219,27 @@ class SpringDataset:
                 # other time step, other cam
                 img4_path = os.path.join(
                     self.seq_root, scene, f"frame_{othercam}", f"frame_{othercam}_{othertimestep:04d}.png")
+                img1, img2, img3, img4 = load_spring_images(img1_path,
+                                                            img2_path, img3_path, img4_path)
+                img1 = self.filter_inf_nan(img1)
+                img2 = self.filter_inf_nan(img2)
+                img3 = self.filter_inf_nan(img3)
+                img4 = self.filter_inf_nan(img4)
 
-                img1 = imageio.imread(img1_path)/255.0
-                img2 = imageio.imread(img2_path)/255.0
-                img3 = imageio.imread(img3_path)/255.0
-                img4 = imageio.imread(img4_path)/255.0
-
-                if self._split == "TEST":
-                    yield img1, img2, img3, img4
+                if self._split == "test":
+                    yield img1, img2, img3, img4, data
                 else:
 
                     disp1_path = os.path.join(
                         self.seq_root, scene, f"disp1_{cam}", f"disp1_{cam}_{frame:04d}.dsp5")
-                    disp1 = flow_IO.readDispFile(disp1_path)
                     disp2_path = os.path.join(
                         self.seq_root, scene, f"disp2_{direction}_{cam}", f"disp2_{direction}_{cam}_{frame:04d}.dsp5")
-                    disp2 = flow_IO.readDispFile(disp2_path)
                     flow_path = os.path.join(
                         self.seq_root, scene, f"flow_{direction}_{cam}", f"flow_{direction}_{cam}_{frame:04d}.flo5")
-                    flow = flow_IO.readFlowFile(flow_path)
+
+                    disp1, disp2, flow = load_spring_sf(
+                        disp1_path, disp2_path, flow_path)
+
                     if self._subsample_gt:
                         # use only every second value in both spatial directions ==> ground truth will have same dimensions as images
                         disp1 = disp1[::2, ::2]
@@ -238,29 +247,45 @@ class SpringDataset:
                         flow = flow[::2, ::2]
                     sf = np.stack(
                         (flow[:, :, 0], flow[:, :, 1], disp1, disp2), axis=-1)
-                    yield (img1, img2, img3, img4), sf
+                    sf = self.filter_inf_nan(sf)
+                    yield ((img1, img2, img3, img4), cam_signal), sf
+
+    @staticmethod
+    def filter_inf_nan(data):
+        data[np.isnan(data) | np.isinf(data)] = 0
+        return data
 
 
-def get_spring_dataset(idxs: List[int],
-                       spring_dataset: SpringDataset,
-                       batch_size: int,
+def get_spring_dataset(spring_dataset: SpringDataset,
+                       batch_size: int, split='train',
                        augment: bool = False,
-                       shuffle: bool = False,
-                       crop: bool = True):
+                       crop: bool = False,
+                       cache_path=None):
 
-    dataset = tf.data.Dataset.from_generator(lambda: spring_dataset(train_indices),
-                                             output_types=(
-                                                 4*(tf.float32,), tf.float32),
-                                             output_shapes=(4*((None, None, 3),), (None, None, 4)))
-    dataset = dataset.cache()
-    if shuffle:
-        dataset = dataset.shuffle(len(idxs), reshuffle_each_iteration=True)
+    output_types = ((4*(tf.float32,), tf.int32), tf.float32)
+
+    if split == 'test':
+        output_types = (tf.float32,
+                        tf.float32, tf.float32, tf.float32,
+                        (tf.int32, tf.string, tf.string, tf.string))
+
+    dataset = tf.data.Dataset.from_generator(lambda: spring_dataset,
+                                             output_types=output_types)
+
+    # if shuffle:
+    #     dataset = dataset.shuffle(len(idxs), reshuffle_each_iteration=True)
+
     if batch_size > 1 or crop:
         dataset = dataset.map(map_func=lambda ims, gt: _random_crop(
             ims, gt, target_size=(370, 1224)), num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if augment:
         dataset = dataset.map(
             map_func=_augment, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(2)
+    # dataset = dataset.cache(cache_path)
+
+    dataset = dataset.batch(
+        batch_size, drop_remainder=False, num_parallel_calls=8)
+    dataset = dataset.prefetch(100)
+    if cache_path:
+        dataset = dataset.cache(cache_path)
     return dataset
