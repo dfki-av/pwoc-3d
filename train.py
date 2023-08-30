@@ -41,13 +41,22 @@ if args.pretrain:
     loss_fn = lambda flows, gt: losses.multi_scale_loss(gt, flows, losses.loss_per_scale, weights=[1., 1., 1., 2., 4.])
 
 elif args.finetune_spring:
-    modelname = "pwoc3d-spring" + ('-noocc' if args.noocc else '')
+
+    train_cache = None
+    val_cache = None
+
+    modelname = "pwoc3d-spring-left-right" + ('-noocc' if args.noocc else '')
     batch_size = 2
     if not args.init_with:
         args.init_with = "data/pwoc3d-ft3d"
-    spring_dataset = datasets.SpringDataset(datasets.BASEPATH_SPRING)
-    train_data = datasets.get_spring_dataset(datasets.SPRING_TRAINING_IDXS, spring_dataset, batch_size, augment=True, shuffle=True)
-    valid_data = datasets.get_spring_dataset(datasets.SPRING_VALIDATION_IDXS, spring_dataset, batch_size=1)
+    spring_scene_dict = datasets.SPRING_SCENE_DICT
+    
+    train_dataset = datasets.SpringDataset(datasets.BASEPATH_SPRING, datasets.SPRING_TRAINING_IDXS, spring_scene_dict, shuffle=True)
+    val_dataset = datasets.SpringDataset(datasets.BASEPATH_SPRING, datasets.SPRING_VALIDATION_IDXS, spring_scene_dict)
+    n_train_samples = len(train_dataset)
+    n_val_samples = len(val_dataset)
+    train_data = datasets.get_spring_dataset(train_dataset, batch_size, augment=True, cache_path=train_cache)
+    valid_data = datasets.get_spring_dataset(val_dataset, 1, cache_path=val_cache)
     mean_pixel = datasets.SPRING_MEAN_PIXEL
     n_epochs = 125
     steps_per_epoch = int(np.ceil(n_train_samples/batch_size))
