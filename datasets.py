@@ -42,6 +42,7 @@ FT3D_VALIDATION_LIST = list(t for t in ((letter, seq, frame) for letter in [
 FT3D_TRAINING_SAMPLES = len(FT3D_TRAIN_LIST)  # 20630
 FT3D_VALIDATION_SAMPLES = len(FT3D_VALIDATION_LIST)  # 1500
 
+# TODO add comment explaing the below code
 if os.path.exists(os.path.join(BASEPATH_SPRING, 'spring', 'train')):
     SPRING_SCENE_DICT = prepare_spring_data_dict(BASEPATH_SPRING, 'train')
     SPRING_TRAINING_IDXS, SPRING_VALIDATION_IDXS = split_spring_seq(
@@ -52,13 +53,18 @@ if os.path.exists(os.path.join(BASEPATH_SPRING, 'spring', 'train')):
 
 
 def _kitti_data_with_labels(idxs):
+    # cam_signal determinges whether its left-right disparity or right-left disparity
+    # for uniformity among all the dataloaders
+    cam_signal = 1 
     for n in idxs:
         images = load_kitti_images(n)
         sf = load_kitti_sf(n)
-        yield images, sf
+        yield (images, cam_signal), sf
 
 
 def _ft3d_data_with_labels(dataset_name, shuffle=False, temporal_augmentation=False):
+    # for uniformity among all the dataloaders
+    cam_signal = 1 
     if dataset_name == 'TRAIN':
         data_list = FT3D_TRAIN_LIST
     elif dataset_name == 'VALID':
@@ -79,16 +85,13 @@ def _ft3d_data_with_labels(dataset_name, shuffle=False, temporal_augmentation=Fa
             images = load_ft3d_images(letter, sequence, frame, forward=True)
             sf = load_ft3d_sf(letter, sequence, frame, forward=True)
 
-        yield images, sf
+        yield (images, cam_signal), sf
 
 
 def _augment(images, sf, vertical_flipping=False):
 
-    tup = False
-    if len(images) == 2:
-        images, cam = images
-        tup = True
 
+    images, cam_signal = images
     stacked_images = tf.stack(images, axis=0)
 
     # Gaussian noise has a sigma uniformly sampled from [0, 0.04]
@@ -122,18 +125,16 @@ def _augment(images, sf, vertical_flipping=False):
 
     images = (augmented_images[0], augmented_images[1],
               augmented_images[2], augmented_images[3])
-    if tup:
-        images = (images, cam)
+    
+    images = (images, cam_signal)
 
     return images, sf
 
 
 def _random_crop(images, sf, target_size):
-    tup = False
-    if len(images) == 2:
-        images, cam = images
-        tup = True
 
+    images, cam_signal = images
+ 
     stacked_batch = tf.concat(images+(sf,), axis=2)
     cropped_stack = tf.image.random_crop(
         stacked_batch, size=target_size+(4*3+4,))
@@ -142,16 +143,17 @@ def _random_crop(images, sf, target_size):
     images = (cropped_stack[:, :, 0:3], cropped_stack[:, :, 3:6],
               cropped_stack[:, :, 6:9], cropped_stack[:, :, 9:12])
 
-    if tup:
-        images = (images, cam)
+    images = (images, cam_signal)
+
     return images, sf
 
 
 def get_kitti_dataset(idxs, batch_size, augment=False, shuffle=False, crop=False):
+
+    output_types = ((4*(tf.float32,), tf.int32), tf.float32)
+
     dataset = tf.data.Dataset.from_generator(lambda: _kitti_data_with_labels(idxs),
-                                             output_types=(
-                                                 4*(tf.float32,), tf.float32),
-                                             output_shapes=(4*((None, None, 3),), (None, None, 4)))
+                                             output_types=output_types)
     dataset = dataset.cache()
     if shuffle:
         dataset = dataset.shuffle(len(idxs), reshuffle_each_iteration=True)
@@ -167,10 +169,11 @@ def get_kitti_dataset(idxs, batch_size, augment=False, shuffle=False, crop=False
 
 
 def get_ft3d_dataset(subset, batch_size, augment=False, random_cropping=True, shuffle=False, temporal_augmentation=False):
+
+    output_types = ((4*(tf.float32,), tf.int32), tf.float32)
     dataset = tf.data.Dataset.from_generator(lambda: _ft3d_data_with_labels(subset, shuffle=shuffle, temporal_augmentation=temporal_augmentation),
-                                             output_types=(
-                                                 4*(tf.float32,), tf.float32),
-                                             output_shapes=(4*((None, None, 3),), (None, None, 4)))
+                                             output_types=output_types
+                                             )
     if random_cropping:
         dataset = dataset.map(map_func=lambda ims, gt: _random_crop(
             ims, gt, target_size=(512, 960)), num_parallel_calls=tf.data.experimental.AUTOTUNE)
