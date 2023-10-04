@@ -24,7 +24,7 @@ parser.add_argument('--pretrain', action='store_true')
 parser.add_argument('--finetune', action='store_true', default=True)
 parser.add_argument('--noocc', action='store_true', default=False)
 parser.add_argument('--init_with', action='store', default=None)
-parser.add_argument('--finetune_spring', action='store_true', default=False)
+parser.add_argument('--train_spring', action='store_true', default=False)
 args = parser.parse_args()
 
 if args.pretrain:
@@ -40,15 +40,13 @@ if args.pretrain:
     learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay([x*steps_per_epoch for x in [65, 85]], [0.0001, 0.00005, 0.00001], name='learning_rate')
     loss_fn = lambda flows, gt: losses.multi_scale_loss(gt, flows, losses.loss_per_scale, weights=[1., 1., 1., 2., 4.])
 
-elif args.finetune_spring:
+elif args.train_spring:
 
     train_cache = None
     val_cache = None
 
-    modelname = "pwoc3d-spring-left-right" + ('-noocc' if args.noocc else '')
+    modelname = "pwoc3d-spring" + ('-noocc' if args.noocc else '')
     batch_size = 2
-    if not args.init_with:
-        args.init_with = "data/pwoc3d-ft3d"
     spring_scene_dict = datasets.SPRING_SCENE_DICT
     
     train_dataset = datasets.SpringDataset(datasets.BASEPATH_SPRING, datasets.SPRING_TRAINING_IDXS, spring_scene_dict, shuffle=True)
@@ -58,9 +56,15 @@ elif args.finetune_spring:
     train_data = datasets.get_spring_dataset(train_dataset, batch_size, augment=True, cache_path=train_cache)
     valid_data = datasets.get_spring_dataset(val_dataset, 1, cache_path=val_cache)
     mean_pixel = datasets.SPRING_MEAN_PIXEL
-    n_epochs = 125
     steps_per_epoch = int(np.ceil(n_train_samples/batch_size))
-    learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay([100 * steps_per_epoch, ], [0.00005, 0.00001], name='learning_rate')
+    if args.init_with:
+        n_epochs = 125
+        learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay([100 * steps_per_epoch, ], [0.00005, 0.00001], name='learning_rate')
+        
+    else:
+        n_epochs = 100
+        learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay([x*steps_per_epoch for x in [65, 85]], [0.0001, 0.00005, 0.00001], name='learning_rate')
+    
     loss_fn = lambda flows, gt: losses.finetuning_loss(gt, flows[-1])
     
     
