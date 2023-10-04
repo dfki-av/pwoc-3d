@@ -36,14 +36,10 @@ class Network(tf.keras.Model):
 
     def call(self, inputs, training=False, mask=None):
         
-        # special case for spring dataset.
-        if len(inputs) == 2:
-            inputs, cam_signal = inputs
-            cam_signal = tf.cast(cam_signal, dtype=inputs[0].dtype)
-            cam_signal  = cam_signal[:, tf.newaxis, tf.newaxis]
-        else:
-            cam_signal = 1 # tf.constant([1]*len(inputs))
-        
+
+        inputs, cam_signal = inputs
+        cam_signal = tf.cast(cam_signal, dtype=inputs[0].dtype)
+        cam_signal  = cam_signal[:, tf.newaxis, tf.newaxis]
 
         input_shape = tf.shape(inputs[0])
         input_h, input_w = input_shape[1], input_shape[2]
