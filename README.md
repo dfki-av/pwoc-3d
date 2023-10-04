@@ -54,20 +54,21 @@ If you really plan to train from scratch, it is advisable that you train the mod
 python train.py --pretrain --noocc
 python train.py --pretrain --init_with="./models/pwoc3d-ft3d-noocc/pwoc3d-ft3d-noocc"
 python train.py --finetune --init_with="./models/pwoc3d-ft3d/pwoc3d-ft3d"
+
+# for traning on spring dataset
+python train.py --train_spring --noocc
 ```   
 ### Fine-tuning on the Spring Dataset
 This is separately discussed here as the model is finetuned on spring later. Make sure you have downloaded the required data into `./data/spring`, or change the `BASEPATH` variables in `utils.py` to point to location of the data. 
 
 Additionally you have to clone the [flow_library](https://github.com/cv-stuttgart/flow_library.git) to `./data/` as the code uses io methods from this library to ready `.flo5` files. 
 
-Now you can fine tune on spring dataset in the following way. 
+
+And you can fine tune on spring dataset in the following way. 
 ```
-python train.py --finetune_spring --init_with="./models/pwoc3d-ft3d/
+python train.py --train_spring --init_with="./models/pwoc3d-ft3d/
 
 ```
-
-
-
 
 ### Monitoring the training
 During training, results will be logged as tensorboard summaries.
