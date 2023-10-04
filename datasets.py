@@ -261,7 +261,7 @@ class SpringDataset:
                 img4 = self.filter_inf_nan(img4)
 
                 if self._split == "test":
-                    yield img1, img2, img3, img4, data
+                    yield (img1, img2, img3, img4), cam_signal
                 else:
 
                     disp1_path = os.path.join(
@@ -299,9 +299,7 @@ def get_spring_dataset(spring_dataset: SpringDataset,
     output_types = ((4*(tf.float32,), tf.int32), tf.float32)
 
     if split == 'test':
-        output_types = (tf.float32,
-                        tf.float32, tf.float32, tf.float32,
-                        (tf.int32, tf.string, tf.string, tf.string))
+        output_types = (4*(tf.float32,), tf.int32)
 
     dataset = tf.data.Dataset.from_generator(lambda: spring_dataset,
                                              output_types=output_types)
