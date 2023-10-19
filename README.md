@@ -20,7 +20,8 @@ You can install all dependencies using pip: `pip install -r requirements.txt`
 
 Successfully tested environments:\
 Windows 10: Python 3.6.7, TensorFlow 2.1.0, Numpy 1.17.4, ImageIO 2.6.1\
-Ubuntu 18.04: Python 3.6.8, TensorFlow 2.1.0, Numpy 1.17.4, ImageIO 2.8.0
+Ubuntu 18.04: Python 3.6.8, TensorFlow 2.1.0, Numpy 1.17.4, ImageIO 2.8.0\
+Ubuntu 22.04: Python 3.10.6, TensorFlow 2.13.0, TensorFlow-Addons 0.21.0, Numpy 1.22.2, ImageIO 2.31.5, CUDA 12.2.1
  
 
 ### Data Format
@@ -54,7 +55,21 @@ If you really plan to train from scratch, it is advisable that you train the mod
 python train.py --pretrain --noocc
 python train.py --pretrain --init_with="./models/pwoc3d-ft3d-noocc/pwoc3d-ft3d-noocc"
 python train.py --finetune --init_with="./models/pwoc3d-ft3d/pwoc3d-ft3d"
+
+# for traning on spring dataset
+python train.py --train_spring --noocc
 ```   
+### Fine-tuning on the Spring Dataset
+This is separately discussed here as the model is finetuned on spring later. Make sure you have downloaded the required data into `./data/spring`, or change the `BASEPATH` variables in `utils.py` to point to location of the data. 
+
+Additionally you have to clone the [flow_library](https://github.com/cv-stuttgart/flow_library.git) to `./data/` and install the flow_library,  as the code uses io methods from this library to ready `.flo5` files. 
+
+
+And you can fine tune on spring dataset in the following way. 
+```
+python train.py --train_spring --init_with="./models/pwoc3d-ft3d/
+
+```
 
 ### Monitoring the training
 During training, results will be logged as tensorboard summaries.
@@ -64,7 +79,11 @@ Run `tensorboard --logdir=./summaries` to see the graphs for all common scene fl
 ## Evaluating a model
 Once a checkpoint for a trained model is stored, you can evaluate your model with the provided script for evaluation `eval.py <ckpt>`, e.g.:
 ```
+# kitti
 python eval.py ./data/pwoc3d-kitti
+
+# spring
+python eval.py ./data/pwoc3d-spring
 ```
 This command should produce a similar output to this, giving the average errors and outliers for the 20 samples of our KITTI validation split.
 ```
